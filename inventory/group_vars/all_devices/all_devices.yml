@@ -1,0 +1,6 @@
+---
+
+ansible_network_os: ios
+ansible_user: "{{ vault_ansible_username }}"
+ansible_password: "{{ vault_ansible_password }}"
+ansible_become_password: "{{ vault_ansible_become_password }}"
