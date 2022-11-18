@@ -1,0 +1,59 @@
+---
+
+# First play to locate the IP/MAC mapping
+- name: Cisco ios Find IP
+  hosts: lab_core
+  gather_facts: false
+  connection: network_cli
+
+  vars_prompt:
+  - name: user_ip
+    prompt: Enter IP
+    private: no
+
+
+  tasks:
+    - name: PRINT USER IP
+      ansible.builtin.debug:
+        msg: "You input {{ user_ip }}"
+
+    - name: SHOW ARP
+      ios_command:
+        commands:
+          - "show ip arp | i {{ user_ip }}"
+      register: sh_mac_res
+    - debug: var=sh_mac_res.stdout
+
+    # Sets the MAC address as a fact
+    - set_fact:
+        mac_addr: "{{ sh_mac_res.stdout[0].split()[3] }}"
+
+    - name: PRINT MAC
+      debug:
+        var: mac_addr
+
+
+# Second play to check the access switches for the MAC found
+- name: Cisco ios Find MAC
+  hosts: lab_access
+  gather_facts: false
+  connection: network_cli
+
+
+  tasks:
+    # Grabs the MAC fact set in previous play, sets for new hosts
+    - set_fact:
+        mac_addr: "{{ hostvars['172.16.1.104']['mac_addr'] }}"
+    - name: PRINT MAC
+      debug:
+        var: mac_addr
+
+    - name: SHOW MAC ADDRESS IN TABLE
+      ios_command:
+        commands:
+          - "sh mac address-table address {{ mac_addr }}"
+      register: output
+
+    - name: print output
+      debug:
+        var: output.stdout_lines
