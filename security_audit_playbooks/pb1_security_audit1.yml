@@ -1,0 +1,33 @@
+---
+
+- name: Cisco ios Find IP
+  hosts: lab_core
+  gather_facts: false
+  connection: network_cli
+
+
+  tasks:
+    - name: Show_SNMP
+      ios_command:
+        commands:
+          - "show snmp"
+      register: pre_snmp_output
+
+    - name: Configure_SNMP
+      ios_config:
+        lines: 
+          - snmp-server community COM_STRING RO
+      when: pre_snmp_output is search("%SNMP agent not enabled")
+      register: snmp_changed
+
+    - name: Show SNMP Config
+      ios_command:
+        commands:
+          - "show run | i snmp"
+      # when: snmp_changed.changed
+      register: post_snmp_output
+
+    - name: New SNMP
+      debug:
+        var: post_snmp_output.stdout_lines[0][0]
+      # when: snmp_changed.changed
