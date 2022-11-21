@@ -1,0 +1,124 @@
+---
+
+- name: Cisco ios Find IP
+  hosts: lab_core
+  gather_facts: false
+  connection: network_cli
+
+
+  vars:
+    snmp_string: snmp-server community COM_STRING RO
+
+
+  tasks:
+    - name: Show SNMP
+      ios_command:
+        commands:
+          - "show snmp"
+      register: pre_snmp_output
+
+    # Do not run if SNMP is not Configured
+    - name: Show Running SNMP
+      when: pre_snmp_output is not search("%SNMP agent not enabled")
+      ios_command:
+        commands:
+          - "show run | i snmp"
+      register: misconfigured_SNMP
+
+    - name: Configure SNMP
+      ios_config:
+        lines: 
+          - "{{ snmp_string }}"
+      when: pre_snmp_output is search("%SNMP agent not enabled")
+      register: snmp_changed
+
+
+
+  
+    # #2 
+    # # Will not run if SNMP is not configured
+    # # Will remove a set config line only
+    # - name: Remove Misconfigured SNMP
+    #   when: 
+    #     - misconfigured_SNMP.stdout_lines is defined
+    #   ios_config:
+    #     lines: 
+    #       - "no snmp-server community COM_STRING2 RO"
+    #   register: 
+
+
+    # # 3
+    # # Will check if snmp config is greater than 1 entry
+    # # Will check if the 2nd entry is the desired SNMP string, if not
+    # # Will remove the 2nd element from the SNMP config
+    # - name: Remove Misconfigured SNMP
+    #   when: 
+    #     - misconfigured_SNMP.stdout_lines is defined
+    #     - misconfigured_SNMP.stdout_lines[0] | length > 1
+    #     - misconfigured_SNMP.stdout_lines[0][1] is not search ("snmp-server community COM_STRING RO")
+    #   ios_config:
+    #     lines: 
+    #       - "no {{ misconfigured_SNMP.stdout_lines[0][1] }}"
+    #   register: 
+
+
+
+    # # 4
+    # # Will check if snmp config is greater than 1 entry
+    # # Will remove second element of SNMP config list looping over a list. Just one in this case
+    # - name: Remove Misconfigured SNMP
+    #   when: 
+    #     - misconfigured_SNMP.stdout_lines is defined
+    #     - misconfigured_SNMP.stdout_lines[0] | length > 1
+    #   ios_config:
+    #     lines: 
+    #       - "no {{ item }}"
+    #   with_items:
+    #     - "{{ misconfigured_SNMP.stdout_lines[0][1] }}"
+    #   register: 
+
+
+    # # 5
+    # # Will check if snmp config is greater than 1 entry
+    # # Will remove all SNMP config as a list
+    # - name: Remove Misconfigured SNMP
+    #   when: 
+    #     - misconfigured_SNMP.stdout_lines is defined
+    #     - misconfigured_SNMP.stdout_lines[0] | length > 1
+    #   ios_config:
+    #     lines: 
+    #       - "no {{ item }}"
+    #   with_items:
+    #     - "{{ misconfigured_SNMP.stdout_lines[0] }}"
+    #   register: 
+
+
+
+    # 6
+    # Will remove SNMP config as a list, except if it is the defined SNMP string
+    - name: Remove Misconfigured SNMP
+      when: 
+        - misconfigured_SNMP.stdout_lines is defined
+        - item !=  "{{ snmp_string }}"
+      ios_config:
+        lines: 
+          - "no {{ item }}"
+      with_items:
+        - "{{ misconfigured_SNMP.stdout_lines[0] }}"
+      register: snmp_misconfigure_fix
+
+
+
+
+    - name: Show Fixed SNMP Config
+      ios_command:
+        commands:
+          - "show run | i snmp"
+      when: snmp_misconfigure_fix.changed
+      register: post_snmp_output
+
+    - name: New SNMP
+      debug:
+        var: post_snmp_output.stdout_lines[0][0]
+      when: post_snmp_output.stdout_lines is defined
+
