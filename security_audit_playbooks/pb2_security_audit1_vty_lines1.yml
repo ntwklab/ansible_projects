@@ -1,0 +1,74 @@
+---
+
+#### VTY Lines ####
+- name: VTY PLAY
+  hosts: lab_core
+  gather_facts: false
+  connection: network_cli
+
+
+  vars:
+    vty_config:
+      - privilege level 15
+      - password Stefan2020
+      - transport input ssh
+      # - width 250
+
+    vty_config_ignore:
+      - "!"
+      - end
+      - line vty 0 4
+      - line vty 5 15
+      - line vty 0 15
+
+
+  tasks:
+    - name: SHOW VTY
+      ios_command:
+        commands:
+          - "show run | b line vty"
+      register: pre_vty_output
+
+
+
+    # Configure Correct VTY Config
+    # Only configure VTY if the vty_config is not in the pre_vty_output
+    - name: Configure VTY
+      ios_config:
+        lines: 
+          - "{{ item }}"
+        parents: line vty 0 4
+      loop: "{{ vty_config }}"
+      when: 'item not in "{{ pre_vty_output.stdout_lines[0]|list }}"'
+      register: vty_changed
+
+
+
+    # If show output line is in confg or in config_ignore, skip
+    # If show output line is not in config or not in config_ignore, remove
+    # Remove unwated VTY Config
+    - name: Remove Unwanted VTY Config VTY
+      ios_config:
+        lines:
+          - "no {{ item | trim }}"
+        parents: line vty 0 4
+      loop: "{{ pre_vty_output.stdout_lines[0] }}"
+      when: 
+        - item | trim not in {{ vty_config }}
+        - item | trim not in {{ vty_config_ignore }}
+      register: vty_fixed
+
+
+
+    - name: Show Fixed VTY Config
+      ios_command:
+        commands:
+          - "show run | b line vty"
+      when: 
+        - vty_changed.changed or vty_fixed.changed
+      register: post_vty_output
+
+    - name: New VTY
+      debug:
+        var: post_vty_output.stdout_lines[0]
+      when: post_vty_output.stdout_lines is defined
