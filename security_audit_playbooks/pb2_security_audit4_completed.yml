@@ -1,0 +1,601 @@
+---
+
+# #### SNMP ####
+# - name: SNMP PLAY
+#   hosts: lab_core
+#   gather_facts: false
+#   connection: network_cli
+
+
+#   vars:
+#     snmp_string: snmp-server community COM_STRING RO
+
+
+#   tasks:
+#     - name: SHOW SNMP
+#       ios_command:
+#         commands:
+#           - "show snmp"
+#       register: pre_snmp_output
+
+#     # Do not run if SNMP is not Configured
+#     - name: Show Running SNMP
+#       when: pre_snmp_output is not search("%SNMP agent not enabled")
+#       ios_command:
+#         commands:
+#           - "show run | i snmp"
+#       register: misconfigured_SNMP
+
+#     - name: Configure SNMP
+#       ios_config:
+#         lines: 
+#           - "{{ snmp_string }}"
+#       when: pre_snmp_output is search("%SNMP agent not enabled")
+#       register: snmp_changed
+
+
+#     # Will remove SNMP config as a list, except if it is the defined SNMP string
+#     - name: Remove Misconfigured SNMP
+#       when: 
+#         - misconfigured_SNMP.stdout_lines is defined
+#         - item !=  "{{ snmp_string }}"
+#       ios_config:
+#         lines: 
+#           - "no {{ item }}"
+#       with_items:
+#         - "{{ misconfigured_SNMP.stdout_lines[0] }}"
+#       register: snmp_misconfigure_fix
+
+
+
+
+#     - name: Show Fixed SNMP Config
+#       ios_command:
+#         commands:
+#           - "show run | i snmp"
+#       when: snmp_misconfigure_fix.changed
+#       register: post_snmp_output
+
+#     - name: New SNMP
+#       debug:
+#         var: post_snmp_output.stdout_lines[0][0]
+#       when: post_snmp_output.stdout_lines is defined
+
+
+# #### Logging ####
+# - name: LOGGING HOST PLAY
+#   hosts: lab_core
+#   gather_facts: false
+#   connection: network_cli
+
+
+#   vars:
+#     logging_host: logging host 130.130.130.101
+
+#   #### Logging ####
+#   tasks:
+#     - name: Show Run Logging
+#       ios_command:
+#         commands:
+#           - "sh run | i logging"
+#       register: pre_logging_output
+
+
+#       # Always run this, will not change config if already applied
+#     - name: Configure Logging
+#       ios_config:
+#         lines: 
+#           - "{{ logging_host }}"
+#       # when: pre_snmp_output is search("%SNMP agent not enabled")
+#       register: logging_changed
+
+
+
+#     # Will remove SNMP config as a list, except if it is the defined SNMP string
+#     - name: Remove Logging
+#       when: 
+#         - pre_logging_output.stdout_lines is defined
+#         - item !=  "{{ logging_host }}"
+#         - '"synchronous" not in item'
+#         - '"console" not in item'
+#       ios_config:
+#         lines: 
+#           - "no {{ item }}"
+#       with_items:
+#         - "{{ pre_logging_output.stdout_lines[0] }}"
+#       register: logging_misconfigure_fix
+
+
+#     - name: Show Fixed Logging Config
+#       ios_command:
+#         commands:
+#           - "show run | i logging"
+#       when: (logging_misconfigure_fix.changed or logging_changed.changed)
+#       register: post_logging_output
+
+#     - name: New Logging
+#       debug:
+#         var: post_logging_output.stdout_lines[0]
+#       when: post_logging_output.stdout_lines is defined
+
+
+
+
+# #### VTY Lines ####
+# - name: VTY PLAY
+#   hosts: lab_core
+#   gather_facts: false
+#   connection: network_cli
+
+
+#   vars:
+#     vty_config:
+#       - privilege level 15
+#       - password Stefan2020
+#       - transport input ssh
+#       # - width 250
+
+#     vty_config_ignore:
+#       - "!"
+#       - end
+#       - line vty 0 4
+#       - line vty 5 15
+#       - line vty 0 15
+
+
+#   tasks:
+#     - name: SHOW VTY
+#       ios_command:
+#         commands:
+#           - "show run | b line vty"
+#       register: pre_vty_output
+
+
+
+#     # Configure Correct VTY Config
+#     # Only configure VTY if the vty_config is not in the pre_vty_output
+#     - name: Configure VTY
+#       ios_config:
+#         lines: 
+#           - "{{ item }}"
+#         parents: line vty 0 4
+#       loop: "{{ vty_config }}"
+#       when: 'item not in "{{ pre_vty_output.stdout_lines[0]|list }}"'
+#       register: vty_changed
+
+
+
+#     # If show output line is in confg or in config_ignore, skip
+#     # If show output line is not in config or not in config_ignore, remove
+#     # Remove unwated VTY Config
+#     - name: Remove Unwanted VTY Config VTY
+#       ios_config:
+#         lines:
+#           - "no {{ item | trim }}"
+#         parents: line vty 0 4
+#       loop: "{{ pre_vty_output.stdout_lines[0] }}"
+#       when: 
+#         - item | trim not in {{ vty_config }}
+#         - item | trim not in {{ vty_config_ignore }}
+#       register: vty_fixed
+
+
+
+#     - name: Show Fixed VTY Config
+#       ios_command:
+#         commands:
+#           - "show run | b line vty"
+#       when: 
+#         - vty_changed.changed or vty_fixed.changed
+#       register: post_vty_output
+
+#     - name: New VTY
+#       debug:
+#         var: post_vty_output.stdout_lines[0]
+#       when: post_vty_output.stdout_lines is defined
+
+
+
+
+# #### Secret Lines ####
+# - name: Secret PLAY
+#   hosts: lab_core
+#   gather_facts: false
+#   connection: network_cli
+
+#   vars:
+#     enable_secret: enable secret 5 $1$1kIy$42yUvkQHylbvbNnDv.rjZ/
+
+
+#   tasks:
+#     - name: SHOW SECRET
+#       ios_command:
+#         commands:
+#           - "show run | i enable secret"
+#       register: pre_secret_output
+
+#     - name: SHOW ENABLE
+#       ios_command:
+#         commands:
+#           - "show run | i enable password"
+#       register: pre_enable_output
+
+#     - debug:
+#         var: "pre_enable_output.stdout_lines[0][0].split()[:-1] | join(' ')"
+
+
+#     - name: REMOVE ENABLE PASSWORD
+#       loop: "{{ pre_enable_output.stdout_lines[0] }}"
+#       when: 
+#         - '"enable password" in pre_enable_output.stdout_lines | trim'
+#         # - item is not search("{{ vty_config|list }}")
+#         # - item == "privilege level 15"
+#       ios_config:
+#         lines: 
+#           - no {{ item.split()[:-1] | join(' ') }}
+#       register: enable_misconfigure_fix
+
+
+#   # NEED TO DO THE SAME WITH SECRET PASSWORD, -2 FOR THAT TO REMOVE HASH AND 5
+#     - debug:
+#         var: "pre_secret_output.stdout_lines[0][0].split()[:-2] | join(' ')"
+
+
+#     # - name: REMOVE Secret PASSWORD
+#     #   loop: "{{ pre_secret_output.stdout_lines[0] }}"
+#     #   when: 
+#     #     - '"enable secret" in pre_secret_output.stdout_lines | trim'
+#     #     # - item is not search("{{ vty_config|list }}")
+#     #     # - item == "privilege level 15"
+#     #   ios_config:
+#     #     lines: 
+#     #       - no {{ item.split()[:-2] | join(' ') }}
+#     #   register: secret_misconfigure_fix
+
+
+#     - name: CONFIGURE SECRET PASSWORD
+#       ios_config:
+#         lines: 
+#           - "{{ enable_secret }}"
+#       register: config_secret
+
+
+# #### Domain Name ####
+# - name: Domain PLAY
+#   hosts: lab_core
+#   gather_facts: false
+#   connection: network_cli
+
+#   vars:
+#     domain: ip domain name scrap.lab
+
+
+#   tasks:
+#     - name: CONFIGURE DOMAIN
+#       ios_config:
+#         lines: 
+#           - "{{ domain }}"
+#       register: config_domain
+
+
+
+
+# #### NTP ####
+# - name: NTP PLAY
+#   hosts: lab_core
+#   gather_facts: false
+#   connection: network_cli
+
+#   vars:
+#     ntp_config:
+#       - ntp server 1.1.1.1
+#       - ntp server 2.2.2.2
+
+
+#   tasks:
+#     - name: SHOW NTP
+#       ios_command:
+#         commands:
+#           - "show run | i ntp"
+#       register: pre_ntp_output
+
+
+#     - debug:
+#         var: "pre_ntp_output.stdout_lines[0][0].split()[:-1] | join(' ')"
+
+
+#     - name: REMOVE UNWANTED NTP CONFIG
+#       ios_config:
+#         lines:
+#           - "no {{ item | trim }}"
+#       loop: "{{ pre_ntp_output.stdout_lines[0] }}"
+#       when: 
+#         - item | trim not in {{ ntp_config }}
+#         - item != "" # When equal to empty string, skip
+#       register: ntp_fixed
+
+
+#     - name: CONFIGURE NTP
+#       ios_config:
+#         lines: 
+#           - "{{ item }}"
+#       with_items:
+#         - "{{ ntp_config }}"
+#       register: ntp_changed
+
+
+
+
+# #### DNS ####
+# - name: DNS PLAY
+#   hosts: lab_core
+#   gather_facts: false
+#   connection: network_cli
+
+#   vars:
+#     dns_config:
+#       - ip name-server 3.3.3.3
+#       - ip name-server 4.4.4.4
+
+
+#   tasks:
+#     - name: SHOW DNS
+#       ios_command:
+#         commands:
+#           - "show run | i name-server"
+#       register: pre_dns_output
+
+
+#     - name: REMOVE UNWANTED DNS CONFIG
+#       ios_config:
+#         lines:
+#           - "no {{ item | trim }}"
+#       loop: "{{ pre_dns_output.stdout_lines[0] }}"
+#       when: 
+#         - item | trim not in {{ dns_config }}
+#         - item != "" # When equal to empty string, skip
+#       register: dns_fixed
+
+
+#     - name: CONFIGURE DNS
+#       ios_config:
+#         lines: 
+#           - "{{ item }}"
+#       with_items:
+#         - "{{ dns_config }}"
+#       register: ntp_changed
+
+
+
+
+#### VTY ACL ####
+- name: VTY ACL
+  hosts: lab_core
+  gather_facts: false
+  connection: network_cli
+
+  vars:
+    dns_config:
+      - ip name-server 3.3.3.3
+      - ip name-server 4.4.4.4
+
+
+  tasks:
+    - name: SHOW DNS
+      ios_command:
+        commands:
+          - "show run | i name-server"
+      register: pre_dns_output
+
+
+    - name: REMOVE UNWANTED DNS CONFIG
+      ios_config:
+        lines:
+          - "no {{ item | trim }}"
+      loop: "{{ pre_dns_output.stdout_lines[0] }}"
+      when: 
+        - item | trim not in {{ dns_config }}
+        - item != "" # When equal to empty string, skip
+      register: dns_fixed
+
+
+    - name: CONFIGURE DNS
+      ios_config:
+        lines: 
+          - "{{ item }}"
+      with_items:
+        - "{{ dns_config }}"
+      register: ntp_changed
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    # - name: Remove Unwanted VTY Config VTY
+    #   ios_config:
+    #     lines:
+    #       - "no {{ item | trim }}"
+    #     parents: line vty 0 4
+    #   loop: "{{ pre_vty_output.stdout_lines[0] }}"
+    #   when: 
+    #     - item | trim not in {{ vty_config }}
+    #     - item | trim not in {{ vty_config_ignore }}
+    #   register: vty_fixed
+
+
+
+
+
+    # - name: REMOVE Secret PASSWORD
+    #   loop: "{{ pre_secret_output.stdout_lines[0] }}"
+    #   when: 
+    #     - '"enable secret" in pre_secret_output.stdout_lines | trim'
+    #     # - item is not search("{{ vty_config|list }}")
+    #     # - item == "privilege level 15"
+    #   ios_config:
+    #     lines: 
+    #       - no {{ item.split()[:-2] | join(' ') }}
+    #   register: secret_misconfigure_fix
+
+
+    # - name: CONFIGURE SECRET PASSWORD
+    #   ios_config:
+    #     lines: 
+    #       - "{{ enable_secret }}"
+    #   register: config_secret
+
+
+
+
+
+
+
+    # - debug:
+    #     msg: "{{ item }} is not on the router"
+    #   loop: "{{ vty_config }}"
+    #   when: 'item not in "{{pre_vty_output.stdout_lines[0]|list}}"'
+    #   # when: item not in pre_vty_output_var
+
+
+
+    # - name: Remove Misconfigured VTY
+    #   loop: "{{ pre_vty_output.stdout_lines[0] }}"
+    #   when: 
+    #     - misconfigured_SNMP.stdout_lines is defined
+    #     - item is not search("{{ vty_config|list }}")
+    #     - item == "privilege level 15"
+    #   ios_config:
+    #     lines: 
+    #       - "no {{ item }}"
+    #     parents: line vty 0 4
+    #   # with_items:
+    #     # - "{{ pre_vty_output.stdout_lines[0] }}"
+    #   register: snmp_misconfigure_fix
+
+
+        
+    # - name: My List
+    #   debug: 
+    #     var: pre_vty_output.stdout_lines[0]
+
+    # - debug:
+    #     msg: "{{ item }} is to be removed"
+    #   loop: "{{ pre_vty_output_var }}"
+    #   when: 'item not in "{{ vty_config }}"'
+
+    # - debug:
+    #     msg: "{{ item }} is not present on router"
+    #   loop: "{{ vty_config }}"
+    #   when: 
+    #     - "'item' in {{ pre_vty_output.stdout }}"
+    #     - item in "{{ vty_config }}"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    # # Will remove SNMP config as a list, except if it is the defined SNMP string
+    # - name: Remove Misconfigured SNMP
+    #   when: 
+    #     - misconfigured_SNMP.stdout_lines is defined
+    #     - item !=  "{{ snmp_string }}"
+    #   ios_config:
+    #     lines: 
+    #       - "no {{ item }}"
+    #   with_items:
+    #     - "{{ misconfigured_SNMP.stdout_lines[0] }}"
+    #   register: snmp_misconfigure_fix
+
+
+    # - name: Show Running VTY
+    #   when: pre_snmp_output is not search("%SNMP agent not enabled")
+    #   ios_command:
+    #     commands:
+    #       - "show run | i snmp"
+    #   register: misconfigured_SNMP
+
+
+
+
+
+
+
+    # - name: Configure SNMP
+    #   ios_config:
+    #     lines: 
+    #       - "{{ snmp_string }}"
+    #   when: pre_snmp_output is search("%SNMP agent not enabled")
+    #   register: snmp_changed
+
+
+    # # Will remove SNMP config as a list, except if it is the defined SNMP string
+    # - name: Remove Misconfigured SNMP
+    #   when: 
+    #     - misconfigured_SNMP.stdout_lines is defined
+    #     - item !=  "{{ snmp_string }}"
+    #   ios_config:
+    #     lines: 
+    #       - "no {{ item }}"
+    #   with_items:
+    #     - "{{ misconfigured_SNMP.stdout_lines[0] }}"
+    #   register: snmp_misconfigure_fix
+
+
+
+
+    # - name: Configure SNMP
+    #   ios_config:
+    #     lines: 
+    #       - "{{ snmp_string }}"
+    #   when: pre_snmp_output is search("%SNMP agent not enabled")
+    #   register: snmp_changed
+
+
+    # # Will remove SNMP config as a list, except if it is the defined SNMP string
+    # - name: Remove Misconfigured SNMP
+    #   when: 
+    #     - misconfigured_SNMP.stdout_lines is defined
+    #     - item !=  "{{ snmp_string }}"
+    #   ios_config:
+    #     lines: 
+    #       - "no {{ item }}"
+    #   with_items:
+    #     - "{{ misconfigured_SNMP.stdout_lines[0] }}"
+    #   register: snmp_misconfigure_fix
