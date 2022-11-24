@@ -1,0 +1,33 @@
+---
+
+#### VTY ACL ####
+# https://www.ansible.com/blog/deep-dive-acl-configuration-management-using-ansible-network-automation-resource-modules
+- name: VTY ACL - Replaced state play
+  hosts: lab_core
+  gather_facts: false
+  connection: network_cli
+
+
+  tasks:
+    - name: Replace ACLs config with device existing ACLs config
+      ios_acls:
+        state: replaced
+        config: "{{ acls }}"
+
+
+
+#### VTY ACL Lines ####
+- name: VTY ACL PLAY
+  hosts: lab_core
+  gather_facts: false
+  connection: network_cli
+
+
+  tasks:
+    # Configure Correct VTY Config
+    # Only configure VTY if the vty_config is not in the pre_vty_output
+    - name: Configure VTY
+      ios_config:
+        lines: 
+          - access-class 99 in 
+        parents: line vty 0 4
