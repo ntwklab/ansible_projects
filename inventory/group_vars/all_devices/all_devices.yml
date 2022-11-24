@@ -4,3 +4,37 @@ ansible_network_os: ios
 ansible_user: "{{ vault_ansible_username }}"
 ansible_password: "{{ vault_ansible_password }}"
 ansible_become_password: "{{ vault_ansible_become_password }}"
+
+acls:
+-   acls:
+    -   aces:
+        -   grant: permit
+            sequence: 10
+            source:
+                host: 10.1.1.1
+        -   grant: permit
+            sequence: 20
+            source:
+                host: 172.18.0.12
+        -   grant: permit
+            sequence: 30
+            source:
+                address: 10.0.0.0
+                wildcard_bits: 0.255.255.255
+        -   grant: permit
+            sequence: 40
+            source:
+                address: 172.16.1.0
+                wildcard_bits: 0.0.0.255
+        -   grant: deny
+            sequence: 200
+            source:
+                address: 192.168.0.0
+                wildcard_bits: 0.0.255.255
+        -   grant: deny
+            sequence: 210
+            source:
+                address: any # modified from host as it casues an error
+        acl_type: standard
+        name: '99'
+    afi: ipv4
