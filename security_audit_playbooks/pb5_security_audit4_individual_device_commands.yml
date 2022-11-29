@@ -1,0 +1,31 @@
+---
+
+#### SNMP ####
+- name: SNMP PLAY
+  hosts: lab_core
+  gather_facts: false
+  connection: network_cli
+
+
+  vars:
+    snmp_string: snmp-server community COM_STRING RO
+
+
+  tasks:
+      - name: SNMP Location
+      ios_config:
+        lines:
+          - "{{ snmp_location }}"
+      register: post_snmp_output
+
+
+    - name: Show Fixed SNMP Config
+      ios_command:
+        commands:
+          - "show run | i snmp"
+      register: post_snmp_output
+
+    - name: New SNMP
+      debug:
+        var: post_snmp_output.stdout_lines
+      when: post_snmp_output.stdout_lines is defined
