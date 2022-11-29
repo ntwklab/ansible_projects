@@ -2,7 +2,7 @@
 
 #### SNMP ####
 - name: SNMP PLAY
-  hosts: lab_core
+  hosts: all_devices
   gather_facts: false
   connection: network_cli
 
@@ -12,7 +12,7 @@
 
 
   tasks:
-    - name: SHOW SNMP
+    - name: Show SNMP
       ios_command:
         commands:
           - "show snmp"
@@ -39,6 +39,7 @@
       when: 
         - misconfigured_SNMP.stdout_lines is defined
         - item !=  "{{ snmp_string }}"
+        - item != "{{ snmp_location }}"
       ios_config:
         lines: 
           - "no {{ item }}"
@@ -47,6 +48,11 @@
       register: snmp_misconfigure_fix
 
 
+    - name: SNMP Location
+      ios_config:
+        lines:
+          - "{{ snmp_location }}"
+      register: post_snmp_output
 
 
     - name: Show Fixed SNMP Config
@@ -62,9 +68,10 @@
       when: post_snmp_output.stdout_lines is defined
 
 
+
 #### Logging ####
 - name: LOGGING HOST PLAY
-  hosts: lab_core
+  hosts: all_devices
   gather_facts: false
   connection: network_cli
 
@@ -81,29 +88,36 @@
       register: pre_logging_output
 
 
-      # Always run this, will not change config if already applied
-    - name: Configure Logging
-      ios_config:
-        lines: 
-          - "{{ logging_host }}"
-      # when: pre_snmp_output is search("%SNMP agent not enabled")
-      register: logging_changed
+    - name: Current Logging
+      debug:
+        var: pre_logging_output.stdout_lines[0]
+      when: pre_logging_output.stdout_lines is defined
 
 
 
     # Will remove SNMP config as a list, except if it is the defined SNMP string
     - name: Remove Logging
-      when: 
-        - pre_logging_output.stdout_lines is defined
-        - item !=  "{{ logging_host }}"
-        - '"synchronous" not in item'
-        - '"console" not in item'
       ios_config:
         lines: 
           - "no {{ item }}"
       with_items:
         - "{{ pre_logging_output.stdout_lines[0] }}"
+      when: 
+        - pre_logging_output.stdout_lines is defined
+        - '"130.130.130.101" not in item'
+        - '"synchronous" not in item'
+        - '"console" not in item'
+        - '"buffered" not in item'
       register: logging_misconfigure_fix
+
+
+      # Always run this, will not change config if already applied
+      # Some devices can be "logging [IP]" and not "logging host [IP]" as Ansible excpects
+    - name: Configure Logging
+      ios_config:
+        lines: 
+          - "{{ logging_host }}"
+      register: logging_changed
 
 
     - name: Show Fixed Logging Config
@@ -123,7 +137,7 @@
 
 #### VTY Lines ####
 - name: VTY PLAY
-  hosts: lab_core
+  hosts: all_devices
   gather_facts: false
   connection: network_cli
 
@@ -134,7 +148,6 @@
       - password Stefan2020
       - transport input ssh
       - access-class 99 in
-
 
 
     vty_config_ignore:
@@ -148,12 +161,11 @@
 
 
   tasks:
-    - name: SHOW VTY
+    - name: show VTY
       ios_command:
         commands:
           - "show run | b line vty"
       register: pre_vty_output
-
 
 
     # Configure Correct VTY Config
@@ -166,7 +178,6 @@
       loop: "{{ vty_config }}"
       when: 'item not in "{{ pre_vty_output.stdout_lines[0]|list }}"'
       register: vty_changed
-
 
 
     # If show output line is in confg or in config_ignore, skip
@@ -182,7 +193,6 @@
         - item | trim not in {{ vty_config }}
         - item | trim not in {{ vty_config_ignore }}
       register: vty_fixed
-
 
 
     - name: Show Fixed VTY Config
@@ -202,8 +212,8 @@
 
 
 #### Secret Lines ####
-- name: Secret PLAY
-  hosts: lab_core
+- name: SECRET PLAY
+  hosts: all_devices
   gather_facts: false
   connection: network_cli
 
@@ -212,13 +222,13 @@
 
 
   tasks:
-    - name: SHOW SECRET
+    - name: Show Secret
       ios_command:
         commands:
           - "show run | i enable secret"
       register: pre_secret_output
 
-    - name: SHOW ENABLE
+    - name: Show Enable
       ios_command:
         commands:
           - "show run | i enable password"
@@ -228,7 +238,7 @@
         var: "pre_enable_output.stdout_lines[0][0].split()[:-1] | join(' ')"
 
 
-    - name: REMOVE ENABLE PASSWORD
+    - name: Remove Enable Password
       loop: "{{ pre_enable_output.stdout_lines[0] }}"
       when: 
         - '"enable password" in pre_enable_output.stdout_lines | trim'
@@ -245,28 +255,17 @@
         var: "pre_secret_output.stdout_lines[0][0].split()[:-2] | join(' ')"
 
 
-    # - name: REMOVE Secret PASSWORD
-    #   loop: "{{ pre_secret_output.stdout_lines[0] }}"
-    #   when: 
-    #     - '"enable secret" in pre_secret_output.stdout_lines | trim'
-    #     # - item is not search("{{ vty_config|list }}")
-    #     # - item == "privilege level 15"
-    #   ios_config:
-    #     lines: 
-    #       - no {{ item.split()[:-2] | join(' ') }}
-    #   register: secret_misconfigure_fix
-
-
-    - name: CONFIGURE SECRET PASSWORD
+    - name: Configure secret Password
       ios_config:
         lines: 
           - "{{ enable_secret }}"
       register: config_secret
 
 
+
 #### Domain Name ####
-- name: Domain PLAY
-  hosts: lab_core
+- name: DOMAIN PLAY
+  hosts: all_devices
   gather_facts: false
   connection: network_cli
 
@@ -275,7 +274,7 @@
 
 
   tasks:
-    - name: CONFIGURE DOMAIN
+    - name: Configure Domain
       ios_config:
         lines: 
           - "{{ domain }}"
@@ -286,7 +285,7 @@
 
 #### NTP ####
 - name: NTP PLAY
-  hosts: lab_core
+  hosts: all_devices
   gather_facts: false
   connection: network_cli
 
@@ -297,7 +296,7 @@
 
 
   tasks:
-    - name: SHOW NTP
+    - name: Show NTP
       ios_command:
         commands:
           - "show run | i ntp"
@@ -308,7 +307,7 @@
         var: "pre_ntp_output.stdout_lines[0][0].split()[:-1] | join(' ')"
 
 
-    - name: REMOVE UNWANTED NTP CONFIG
+    - name: Remove Unwanted NTP Config
       ios_config:
         lines:
           - "no {{ item | trim }}"
@@ -319,7 +318,7 @@
       register: ntp_fixed
 
 
-    - name: CONFIGURE NTP
+    - name: configure NTP
       ios_config:
         lines: 
           - "{{ item }}"
@@ -332,7 +331,7 @@
 
 #### DNS ####
 - name: DNS PLAY
-  hosts: lab_core
+  hosts: all_devices
   gather_facts: false
   connection: network_cli
 
@@ -343,14 +342,14 @@
 
 
   tasks:
-    - name: SHOW DNS
+    - name: Show DNS
       ios_command:
         commands:
           - "show run | i name-server"
       register: pre_dns_output
 
 
-    - name: REMOVE UNWANTED DNS CONFIG
+    - name: Remove Unwanted DNS Config
       ios_config:
         lines:
           - "no {{ item | trim }}"
@@ -361,7 +360,7 @@
       register: dns_fixed
 
 
-    - name: CONFIGURE DNS
+    - name: Configure DNS
       ios_config:
         lines: 
           - "{{ item }}"
@@ -374,8 +373,8 @@
 
 #### VTY ACL ####
 # https://www.ansible.com/blog/deep-dive-acl-configuration-management-using-ansible-network-automation-resource-modules
-- name: VTY ACL - Replaced state play
-  hosts: lab_core
+- name: VTY ACL - REPLACED STATE PLAY
+  hosts: all_devices
   gather_facts: false
   connection: network_cli
 
@@ -391,7 +390,7 @@
 
 #### VTY ACL Lines ####
 - name: VTY ACL PLAY
-  hosts: lab_core
+  hosts: all_devices
   gather_facts: false
   connection: network_cli
 
@@ -404,5 +403,4 @@
         lines: 
           - access-class 99 in 
         parents: line vty 0 4
-
 
